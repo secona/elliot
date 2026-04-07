@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.15.0)
 project(elliot LANGUAGES CXX C)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 set(LLVM_DIR "${CMAKE_SOURCE_DIR}/third_party/llvm-project/build/lib/cmake/llvm" CACHE PATH "Path to LLVM cmake configs")
 set(MLIR_DIR "${CMAKE_SOURCE_DIR}/third_party/llvm-project/build/lib/cmake/mlir" CACHE PATH "Path to MLIR cmake configs")
 
@@ -22,3 +25,5 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 
 add_definitions(${LLVM_DEFINITIONS})
+
+add_subdirectory(tools)
