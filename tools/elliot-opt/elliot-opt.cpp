@@ -1,3 +1,4 @@
+#include "Elliot/Transforms/Passes.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/InitAllDialects.h"
 #include "mlir/InitAllPasses.h"
@@ -6,6 +7,7 @@
 
 int main(int argc, char **argv) {
   mlir::registerAllPasses();
+  elliot::registerElliotPasses();
   mlir::DialectRegistry registry;
   mlir::registerAllDialects(registry);
 

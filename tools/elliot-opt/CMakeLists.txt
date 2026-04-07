@@ -13,6 +13,7 @@ set(LIBS
   MLIRSparseTensorDialect
   MLIRSparseTensorTransforms
   MLIRSupport
+  ElliotTransforms
 )
 
 add_llvm_executable(elliot-opt elliot-opt.cpp)
