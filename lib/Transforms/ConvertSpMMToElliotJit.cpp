@@ -1,4 +1,6 @@
 #include "Elliot/Transforms/Passes.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include <memory>
@@ -33,11 +35,16 @@ struct SpMMToElliotRewrite : public OpRewritePattern<linalg::GenericOp> {
 
     Location loc = op.getLoc();
 
-    Value pointers = ToCoordinatesOp::create(
-        rewriter, loc, rewriter.getIndexType(), lhs, rewriter.getIndexAttr(1));
-    Value indices = ToCoordinatesOp::create(
-        rewriter, loc, rewriter.getIndexType(), lhs, rewriter.getIndexAttr(1));
-    Value values = ToValuesOp::create(rewriter, loc, lhs);
+    Type indexType = rewriter.getIndexType();
+    Type ptrIdxMemRefType = MemRefType::get({ShapedType::kDynamic}, indexType);
+    Type elementType = lhsType.getElementType();
+    Type valMemRefType = MemRefType::get({ShapedType::kDynamic}, elementType);
+
+    Value pointers = ToPositionsOp::create(rewriter, loc, ptrIdxMemRefType,
+                                             lhs, rewriter.getIndexAttr(1));
+    Value indices = ToCoordinatesOp::create(rewriter, loc, ptrIdxMemRefType,
+                                            lhs, rewriter.getIndexAttr(1));
+    Value values = ToValuesOp::create(rewriter, loc, valMemRefType, lhs);
 
     Value rhs = op.getDpsInputs()[1];
     Value out = op.getDpsInits()[0];
@@ -55,13 +62,12 @@ struct SpMMToElliotRewrite : public OpRewritePattern<linalg::GenericOp> {
       func::FuncOp jitFunc =
           func::FuncOp::create(rewriter, loc, jitFuncName, funcType);
       jitFunc.setPrivate();
-      module.push_back(jitFunc);
     }
 
     func::CallOp::create(rewriter, loc, jitFuncName, TypeRange(),
                          ValueRange{pointers, indices, values, rhs, out});
 
-    rewriter.eraseOp(op);
+    rewriter.replaceOp(op, out);
     return success();
   }
 };

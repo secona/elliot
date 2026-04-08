@@ -8,6 +8,13 @@ set(LLVM_DIR "${CMAKE_SOURCE_DIR}/third_party/llvm-project/build/lib/cmake/llvm"
 set(MLIR_DIR "${CMAKE_SOURCE_DIR}/third_party/llvm-project/build/lib/cmake/mlir" CACHE PATH "Path to MLIR cmake configs")
 
 find_package(MLIR REQUIRED CONFIG)
+find_package(CUDAToolkit REQUIRED)
+
+if(CUDAToolkit_FOUND)
+  message(STATUS "Found CUDA Toolkit: ${CUDAToolkit_INCLUDE_DIRS}")
+else()
+  message(FATAL_ERROR "CUDA Toolkit not found. Elliot runtime cannot be built.")
+endif()
 
 message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
