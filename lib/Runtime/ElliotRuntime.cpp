@@ -37,8 +37,8 @@ template <typename T> struct MemRef1D {
 const char *spmv_kernel_code = R"CUDA(
 extern "C" __global__ void spmv_csr(
     int num_rows, 
-    const int* ptr, 
-    const int* idx, 
+    const long long* ptr, 
+    const long long* idx, 
     const float* val, 
     const float* x, 
     float* y) 
@@ -46,8 +46,8 @@ extern "C" __global__ void spmv_csr(
     int row = blockIdx.x * blockDim.x + threadIdx.x;
     if (row < num_rows) {
         float sum = 0.0f;
-        int start = ptr[row];
-        int end = ptr[row + 1];
+        long long start = ptr[row];
+        long long end = ptr[row + 1];
 
         for (long long i = start; i < end; ++i) {
             sum += val[i] * x[idx[i]];
@@ -71,7 +71,7 @@ _mlir_ciface_elliot_jit_spmv_csr_f32(MemRef1D<int64_t> *ptr_ref, MemRef1D<int64_
   CUdevice cuDevice;
   CUcontext context;
   CUDA_SAFE_CALL(cuDeviceGet(&cuDevice, 0));
-  CUDA_SAFE_CALL(cuCtxCreate(&context, 0, cuDevice));
+  CUDA_SAFE_CALL(cuCtxCreate(&context, nullptr, 0, cuDevice));
 
   // 2. Create the NVRTC Program
   nvrtcProgram prog;
@@ -105,15 +105,36 @@ _mlir_ciface_elliot_jit_spmv_csr_f32(MemRef1D<int64_t> *ptr_ref, MemRef1D<int64_
   CUDA_SAFE_CALL(cuModuleLoadDataEx(&module, ptx.data(), 0, 0, 0));
   CUDA_SAFE_CALL(cuModuleGetFunction(&kernel, module, "spmv_csr"));
 
-  // 6. Set up Kernel Arguments and Launch
-  // Extract raw device pointers from MLIR memrefs
-  int64_t *d_ptr = ptr_ref->alignedPtr + ptr_ref->offset;
-  int64_t *d_idx = idx_ref->alignedPtr + idx_ref->offset;
-  float *d_val = val_ref->alignedPtr + val_ref->offset;
-  float *d_x = x_ref->alignedPtr + x_ref->offset;
-  float *d_y = y_ref->alignedPtr + y_ref->offset;
+  // Extract raw HOST pointers from MLIR memrefs
+  int64_t *h_ptr = ptr_ref->alignedPtr + ptr_ref->offset;
+  int64_t *h_idx = idx_ref->alignedPtr + idx_ref->offset;
+  float *h_val = val_ref->alignedPtr + val_ref->offset;
+  float *h_x = x_ref->alignedPtr + x_ref->offset;
+  float *h_y = y_ref->alignedPtr + y_ref->offset;
   int rows_int = static_cast<int>(num_rows);
 
+  // Calculate byte sizes based on the memref sizes array
+  size_t ptr_bytes = ptr_ref->sizes[0] * sizeof(int64_t);
+  size_t idx_bytes = idx_ref->sizes[0] * sizeof(int64_t);
+  size_t val_bytes = val_ref->sizes[0] * sizeof(float);
+  size_t x_bytes = x_ref->sizes[0] * sizeof(float);
+  size_t y_bytes = y_ref->sizes[0] * sizeof(float);
+
+  // Allocate DEVICE memory
+  CUdeviceptr d_ptr, d_idx, d_val, d_x, d_y;
+  CUDA_SAFE_CALL(cuMemAlloc(&d_ptr, ptr_bytes));
+  CUDA_SAFE_CALL(cuMemAlloc(&d_idx, idx_bytes));
+  CUDA_SAFE_CALL(cuMemAlloc(&d_val, val_bytes));
+  CUDA_SAFE_CALL(cuMemAlloc(&d_x, x_bytes));
+  CUDA_SAFE_CALL(cuMemAlloc(&d_y, y_bytes));
+
+  // Copy Host to Device
+  CUDA_SAFE_CALL(cuMemcpyHtoD(d_ptr, h_ptr, ptr_bytes));
+  CUDA_SAFE_CALL(cuMemcpyHtoD(d_idx, h_idx, idx_bytes));
+  CUDA_SAFE_CALL(cuMemcpyHtoD(d_val, h_val, val_bytes));
+  CUDA_SAFE_CALL(cuMemcpyHtoD(d_x, h_x, x_bytes));
+
+  // Set up Kernel Arguments (using device pointers)
   void *args[] = {&rows_int, &d_ptr, &d_idx, &d_val, &d_x, &d_y};
 
   int threadsPerBlock = 256;
@@ -129,6 +150,14 @@ _mlir_ciface_elliot_jit_spmv_csr_f32(MemRef1D<int64_t> *ptr_ref, MemRef1D<int64_
 
   CUDA_SAFE_CALL(cuCtxSynchronize());
 
+  CUDA_SAFE_CALL(cuMemcpyDtoH(h_y, d_y, y_bytes));
+
+  CUDA_SAFE_CALL(cuMemFree(d_ptr));
+  CUDA_SAFE_CALL(cuMemFree(d_idx));
+  CUDA_SAFE_CALL(cuMemFree(d_val));
+  CUDA_SAFE_CALL(cuMemFree(d_x));
+  CUDA_SAFE_CALL(cuMemFree(d_y));
+  
   // Clean up context
   CUDA_SAFE_CALL(cuModuleUnload(module));
   CUDA_SAFE_CALL(cuCtxDestroy(context));

@@ -90,7 +90,6 @@ int main(int argc, char **argv) {
   }
 
   // Cleanup
-  std::free(out->basePtr);
   std::free(out);
   std::free(x_data);
   std::free(y_in_data);
