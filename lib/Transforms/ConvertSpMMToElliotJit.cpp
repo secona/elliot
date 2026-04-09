@@ -50,7 +50,7 @@ struct SpMMToElliotRewrite : public OpRewritePattern<linalg::GenericOp> {
     Value out = op.getDpsInits()[0];
 
     ModuleOp module = op->getParentOfType<ModuleOp>();
-    StringRef jitFuncName = "elliot_jit_spmm_f32";
+    StringRef jitFuncName = "elliot_jit_spmv_csr_f32";
 
     if (!module.lookupSymbol<func::FuncOp>(jitFuncName)) {
       OpBuilder::InsertionGuard guard(rewriter);
