@@ -34,14 +34,11 @@ template <typename T> struct MemRef1D {
     }                                                                          \
   } while (0)
 
-// The raw CUDA kernel string.
-// Later, you will inject '#define' macros here before compilation to optimize
-// it.
 const char *spmv_kernel_code = R"CUDA(
 extern "C" __global__ void spmv_csr(
     int num_rows, 
-    const int64_t* ptr, 
-    const int64_t* idx, 
+    const int* ptr, 
+    const int* idx, 
     const float* val, 
     const float* x, 
     float* y) 
@@ -49,19 +46,20 @@ extern "C" __global__ void spmv_csr(
     int row = blockIdx.x * blockDim.x + threadIdx.x;
     if (row < num_rows) {
         float sum = 0.0f;
-        int64_t start = ptr[row];
-        int64_t end = ptr[row + 1];
-        
-        for (int64_t i = start; i < end; ++i) {
+        int start = ptr[row];
+        int end = ptr[row + 1];
+
+        for (long long i = start; i < end; ++i) {
             sum += val[i] * x[idx[i]];
         }
+
         y[row] = sum;
     }
 }
 )CUDA";
 
 extern "C" void
-elliot_jit_spmv_csr_f32(MemRef1D<int64_t> *ptr_ref, MemRef1D<int64_t> *idx_ref,
+_mlir_ciface_elliot_jit_spmv_csr_f32(MemRef1D<int64_t> *ptr_ref, MemRef1D<int64_t> *idx_ref,
                         MemRef1D<float> *val_ref, MemRef1D<float> *x_ref,
                         MemRef1D<float> *y_ref, int64_t num_rows) {
 

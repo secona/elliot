@@ -1,6 +1,8 @@
 #include "Elliot/Transforms/Passes.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include <memory>
@@ -35,6 +37,8 @@ struct SpMMToElliotRewrite : public OpRewritePattern<linalg::GenericOp> {
 
     Location loc = op.getLoc();
 
+    Value numRows = tensor::DimOp::create(rewriter, loc, lhs, 0);
+
     Type indexType = rewriter.getIndexType();
     Type ptrIdxMemRefType = MemRefType::get({ShapedType::kDynamic}, indexType);
     Type elementType = lhsType.getElementType();
@@ -49,6 +53,14 @@ struct SpMMToElliotRewrite : public OpRewritePattern<linalg::GenericOp> {
     Value rhs = op.getDpsInputs()[1];
     Value out = op.getDpsInits()[0];
 
+    auto rhsType = cast<RankedTensorType>(rhs.getType());
+    auto outType = cast<RankedTensorType>(out.getType());
+    Type rhsMemRefType = MemRefType::get(rhsType.getShape(), rhsType.getElementType());
+    Type outMemRefType = MemRefType::get(outType.getShape(), outType.getElementType());
+
+    Value rhsMemRef = bufferization::ToBufferOp::create(rewriter, loc, rhsMemRefType, rhs);
+    Value outMemRef = bufferization::ToBufferOp::create(rewriter, loc, outMemRefType, out);
+
     ModuleOp module = op->getParentOfType<ModuleOp>();
     StringRef jitFuncName = "elliot_jit_spmv_csr_f32";
 
@@ -57,17 +69,21 @@ struct SpMMToElliotRewrite : public OpRewritePattern<linalg::GenericOp> {
       rewriter.setInsertionPointToStart(module.getBody());
       auto funcType = rewriter.getFunctionType(
           {pointers.getType(), indices.getType(), values.getType(),
-           rhs.getType(), out.getType()},
+           rhsMemRef.getType(), outMemRef.getType(), numRows.getType()},
           {});
       func::FuncOp jitFunc =
           func::FuncOp::create(rewriter, loc, jitFuncName, funcType);
       jitFunc.setPrivate();
+      jitFunc->setAttr("llvm.emit_c_interface", rewriter.getUnitAttr());
     }
 
     func::CallOp::create(rewriter, loc, jitFuncName, TypeRange(),
-                         ValueRange{pointers, indices, values, rhs, out});
+                         ValueRange{pointers, indices, values, rhsMemRef, outMemRef, numRows});
 
-    rewriter.replaceOp(op, out);
+    bufferization::ToTensorOp resTensor = bufferization::ToTensorOp::create(rewriter, loc, outType, outMemRef);
+    resTensor->setAttr("restrict", rewriter.getUnitAttr());
+
+    rewriter.replaceOp(op, resTensor.getResult());
     return success();
   }
 };

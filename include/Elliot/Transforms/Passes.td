@@ -13,6 +13,7 @@ def ConvertSpMMToElliotJit : Pass<"convert-spmm-to-elliot", "ModuleOp"> {
   let constructor = "elliot::createConvertSpMMToElliotJitPass()";
   let dependentDialects = ["mlir::func::FuncDialect",
                            "mlir::sparse_tensor::SparseTensorDialect",
+                           "mlir::bufferization::BufferizationDialect",
                            "mlir::memref::MemRefDialect"];
 }
 
