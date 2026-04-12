@@ -89,7 +89,7 @@ struct SpMVToElliotRewrite : public OpRewritePattern<linalg::GenericOp> {
 };
 
 struct ConvertSpMVToElliotJitPass
-    : public ::impl::ConvertSpMVToElliotJitBase<
+    : public ::mlir::impl::ConvertSpMVToElliotJitBase<
           ConvertSpMVToElliotJitPass> {
 
   void runOnOperation() override {
