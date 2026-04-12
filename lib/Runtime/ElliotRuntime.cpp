@@ -71,7 +71,13 @@ _mlir_ciface_elliot_jit_spmv_csr_f32(MemRef1D<int64_t> *ptr_ref, MemRef1D<int64_
   CUdevice cuDevice;
   CUcontext context;
   CUDA_SAFE_CALL(cuDeviceGet(&cuDevice, 0));
-  CUDA_SAFE_CALL(cuCtxCreate(&context, nullptr, 0, cuDevice));
+
+#if CUDA_VERSION >= 13000
+  CUctxCreateParams ctxParams{};
+  CUDA_SAFE_CALL(cuCtxCreate(&context, &ctxParams, 0, cuDevice));
+#else
+  CUDA_SAFE_CALL(cuCtxCreate(&context, 0, cuDevice));
+#endif
 
   // 2. Create the NVRTC Program
   nvrtcProgram prog;
