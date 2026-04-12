@@ -1,4 +1,4 @@
-../build/tools/elliot-opt/elliot-opt --convert-spmm-to-elliot kernel.mlir > program.mlir
+../build/tools/elliot-opt/elliot-opt --convert-spmv-to-elliot kernel.mlir > program.mlir
 ../third_party/llvm-project/build/bin/mlir-opt --sparsifier program.mlir > program1.mlir
 ../third_party/llvm-project/build/bin/mlir-translate --mlir-to-llvmir program1.mlir > program.ll
 ../third_party/llvm-project/build/bin/llc program.ll -O3 -filetype=obj -o program.o

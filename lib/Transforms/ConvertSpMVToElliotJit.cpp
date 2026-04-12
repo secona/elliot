@@ -8,7 +8,7 @@
 #include <memory>
 
 namespace mlir {
-#define GEN_PASS_DEF_CONVERTSPMMTOELLIOTJIT
+#define GEN_PASS_DEF_CONVERTSPMVTOELLIOTJIT
 #include "Elliot/Transforms/Passes.h.inc"
 } // namespace mlir
 
@@ -18,8 +18,8 @@ using namespace mlir::sparse_tensor;
 namespace elliot {
 namespace {
 
-struct SpMMToElliotRewrite : public OpRewritePattern<linalg::GenericOp> {
-  SpMMToElliotRewrite(MLIRContext *context)
+struct SpMVToElliotRewrite : public OpRewritePattern<linalg::GenericOp> {
+  SpMVToElliotRewrite(MLIRContext *context)
       : OpRewritePattern<linalg::GenericOp>(context, /*benefit=*/1) {}
 
   LogicalResult matchAndRewrite(linalg::GenericOp op,
@@ -88,16 +88,16 @@ struct SpMMToElliotRewrite : public OpRewritePattern<linalg::GenericOp> {
   }
 };
 
-struct ConvertSpMMToElliotJitPass
-    : public mlir::impl::ConvertSpMMToElliotJitBase<
-          ConvertSpMMToElliotJitPass> {
+struct ConvertSpMVToElliotJitPass
+    : public ::impl::ConvertSpMVToElliotJitBase<
+          ConvertSpMVToElliotJitPass> {
 
   void runOnOperation() override {
     ModuleOp module = getOperation();
     MLIRContext *context = &getContext();
 
     RewritePatternSet patterns(context);
-    patterns.add<SpMMToElliotRewrite>(context);
+    patterns.add<SpMVToElliotRewrite>(context);
 
     if (failed(applyPatternsGreedily(module, std::move(patterns)))) {
       signalPassFailure();
@@ -107,8 +107,8 @@ struct ConvertSpMMToElliotJitPass
 
 } // anonymous namespace
 
-std::unique_ptr<mlir::Pass> createConvertSpMMToElliotJitPass() {
-  return std::make_unique<ConvertSpMMToElliotJitPass>();
+std::unique_ptr<mlir::Pass> createConvertSpMVToElliotJitPass() {
+  return std::make_unique<ConvertSpMVToElliotJitPass>();
 }
 
 } // namespace elliot

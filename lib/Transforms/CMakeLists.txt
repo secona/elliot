@@ -1,5 +1,5 @@
 add_mlir_library(ElliotTransforms
-  ConvertSpMMToElliotJit.cpp
+  ConvertSpMVToElliotJit.cpp
 
   ADDITIONAL_HEADER_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/../../include/Elliot/Transforms

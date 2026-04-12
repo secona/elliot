@@ -5,6 +5,7 @@
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/Pass/Pass.h"
 #include <memory>
 
@@ -15,7 +16,7 @@ namespace mlir {
 
 namespace elliot {
 
-std::unique_ptr<mlir::Pass> createConvertSpMMToElliotJitPass();
+std::unique_ptr<mlir::Pass> createConvertSpMVToElliotJitPass();
 
 #define GEN_PASS_REGISTRATION
 #include "Elliot/Transforms/Passes.h.inc"
